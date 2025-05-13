@@ -528,9 +528,7 @@ void handle_view_enrolled_courses(struct message *msg) {
             lseek(course_fd, 0, SEEK_SET);
             while (read(course_fd, &temp, sizeof(temp)) > 0) {
                 if (strcmp(temp.course_code, sc.course_code) == 0) {
-                    if (count < 10) {
-                        msg->courseList[count++] = temp;
-                    }
+                    msg->courseList[count++] = temp;
                     break;
                 }
             }
