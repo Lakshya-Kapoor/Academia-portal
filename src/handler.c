@@ -285,8 +285,49 @@ void handle_remove_course(struct message *msg) {
         return;
     }
 
+    // Remove all students enrolled in the course
+    fd = open_file_with_lock(STUDENT_COURSE_FILE, O_RDONLY, LOCK_SH);
+    if (fd < 0) {
+        strcpy(msg->message, "Error accessing student-course file");
+        return;
+    }
+
+    temp_fd =
+        open("temp_student_course_file", O_RDWR | O_CREAT | O_TRUNC, 0644);
+    if (temp_fd < 0) {
+        close_file_with_unlock(fd);
+        strcpy(msg->message,
+               "Error creating temporary file for student-course");
+        return;
+    }
+
+    struct student_course sc;
+
+    while (read(fd, &sc, sizeof(sc)) > 0) {
+        if (strcmp(sc.course_code, msg->course.course_code) != 0) {
+            if (write(temp_fd, &sc, sizeof(sc)) < 0) {
+                perror("write():");
+                close_file_with_unlock(fd);
+                close(temp_fd);
+                strcpy(msg->message,
+                       "Error writing to temporary student-course file");
+                return;
+            }
+        }
+    }
+
+    close_file_with_unlock(fd);
+    close(temp_fd);
+
+    if (rename("temp_student_course_file", STUDENT_COURSE_FILE) < 0) {
+        perror("rename():");
+        strcpy(msg->message, "Error replacing student-course file");
+        return;
+    }
+
     strcpy(msg->message,
-           found ? "Course removed successfully" : "Course not found");
+           found ? "Course and associated enrollments removed successfully"
+                 : "Course not found");
 }
 
 void handle_update_course(struct message *msg) {
