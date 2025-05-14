@@ -118,48 +118,38 @@ struct message {
 
 This struct encapsulates the type of operation and associated data, enabling structured communication.
 
-### 4. Forking the Server Process
+### 4. Thread-Based Server Process
 
-The `main` function in `server.c` demonstrates how the server forks a new process to handle each client connection:
+The `main` function in `server.c` demonstrates how the server uses threads to handle each client connection:
 
 ```c
 int main() {
     int l_sock = start_server();
 
     while (1) {
-        int r;
-        int c_sock;
         struct sockaddr_in remote;
         int addr_size = sizeof(remote);
 
         fillzero(remote);
 
-        // Accepting a connection
-        c_sock = accept(l_sock, (struct sockaddr *)&remote, &addr_size);
-        if (c_sock < 0) {
+        int *c_sock = malloc(sizeof(int));
+        *c_sock = accept(l_sock, (struct sockaddr *)&remote, &addr_size);
+        if (*c_sock < 0) {
             perror("accept():");
             exit(1);
         }
+
         printf("Connection accepted from %s:%d\n", inet_ntoa(remote.sin_addr),
                ntohs(remote.sin_port));
 
-        if ((r = fork()) < 0) {
-            perror("fork():");
-            exit(1);
-        } else if (r == 0) {
-            // Child process
-            close(l_sock);  // Close the listening socket in the child process
-            handle_connection(c_sock);
-            exit(0);
-        } else {
-            // Parent process
-            close(c_sock);  // Close the connected socket in parent process
-        }
+        pthread_t tid;
+        pthread_create(&tid, NULL, handle_connection, (void *)c_sock);
+        pthread_detach(tid);
     }
 }
 ```
 
-This approach allows the server to handle multiple client connections concurrently by creating a new process for each connection.
+This approach allows the server to handle multiple client connections concurrently by creating a new thread for each connection. Threads are lightweight compared to processes, making this implementation more efficient in terms of resource usage.
 
 ## Output Screenshots
 
